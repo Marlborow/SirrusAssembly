@@ -396,7 +396,7 @@ void SirrusAssembler::executeProgram(const std::string & filename)
         }
         else if (cmd == "mul")     
         {
-            if(!cmd_sub(tokens[1], tokens[2]))
+            if(!cmd_mul(tokens[1], tokens[2]))
             {
                 REGISTER_ERROR(tokens[1])
                 return;
