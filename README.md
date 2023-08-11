@@ -6,7 +6,15 @@ Functions include:
 
 Currently increment and decrement does not work.
 
-You can move data around like so:
+**Planned features:**
+ - Support for variables to hold a wide range of data types, not limited to just integers.
+ - Adding the capability to import external files to improve organization and leverage libraries effectively.
+ - Resolve issues with increment and decrement.
+ - JIT (joking)
+
+**EXAMPLES**
+
+Moving data around:
 ```asm
 _main:                  ;start of program
 	var temp 10 		;initialize temp with the value of 10
@@ -23,7 +31,7 @@ output:
 40
 ```
 
-you can also jump to specific lines of the source code with labels
+Jumping to specific lines:
 ```asm
 variables:
 	var test  10	;initialze variable test to the value of 10
