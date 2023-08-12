@@ -10,8 +10,10 @@ std::vector<std::string> SirrusAssembler::split(const std::string & s, char deli
 
     while (std::getline(tokenStream, token, delimiter)) {
         // Remove any trailing whitespace characters
-        token = token.substr(0, token.find_last_not_of(" \t\r\n") + 1);
-        tokens.push_back(token);
+        if (!token.empty()) {
+            token = token.substr(0, token.find_last_not_of(" \t\r\n") + 1);
+            tokens.push_back(token);
+        }
     }
     return tokens;
 }
