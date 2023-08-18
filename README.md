@@ -94,33 +94,33 @@ Hello_World!
 Strings Example (with spaces):
 ```asm
 variables:
-	var array (str)"Hello_World!"
-	var array_len ~[array]
-	var hackyspaces (str)"_"
+	var array (str)"Hello_World!" ;store ascii string into array
+	var array_len ~[array]        ;get the length of the array
+	var hackyspaces (str)"_"      ;get a reference to the character that will be replaced for a space
 	ret
 
 _main:
-	jmp variables
+	jmp variables 
 	mov ebx 0
 	mov edx [hackyspaces]
 lp:
-	mov ecx [array_len]
-	cmp ebx ecx
-	je fin
-	mov eax [array+ebx]
-	cmp eax edx
-	je space
-	print (str)eax
+	mov ecx [array_len] 	
+	cmp ebx ecx 		;compare the current iteration of the array with the array length
+	je fin				;jump to fin label if it matches     
+	mov eax [array+ebx] ;push the current array index value to eax
+	cmp eax edx         ;compare the current value with the value of hackyspaces
+	je space   
+	print (str)eax      ;print string value of eax
 	jmp after_space
 space:
-	mov eax 32
-	print (str)eax
+	mov eax 32            
+	print (str)eax      ;print the string value of 32 (space character)
 after_space:
-	add ebx 1
-	jmp lp
+	add ebx 1           ;increment the iteration counter
+	jmp lp              ;loop once again
 fin:
-	print newline
-	hlt
+	print newline       ;print a new line once looped over the whole array
+	hlt                 ;stop the program
 ```
 output
 ```
