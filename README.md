@@ -64,3 +64,66 @@ output:
 9
 10
 ```
+Strings Example:
+```asm
+variables:
+	var array (str)"Hello_World!"
+	var array_len ~[array]
+	ret
+
+_main:
+	jmp variables
+	mov ebx 0
+lp:
+	mov ecx [array_len]
+	cmp ebx ecx
+	je fin
+	mov eax [array+ebx]
+	cmp eax edx
+	print (str)eax
+	add ebx 1
+	jmp lp
+fin:
+	print newline
+	hlt
+```
+output 
+```
+Hello_World!
+```
+Strings Example (with spaces):
+```asm
+variables:
+	var array (str)"Hello_World!"
+	var array_len ~[array]
+	var hackyspaces (str)"_"
+	ret
+
+_main:
+	jmp variables
+	mov ebx 0
+	mov edx [hackyspaces]
+lp:
+	mov ecx [array_len]
+	cmp ebx ecx
+	je fin
+	mov eax [array+ebx]
+	cmp eax edx
+	je space
+	print (str)eax
+	jmp after_space
+space:
+	mov eax 32
+	print (str)eax
+after_space:
+	add ebx 1
+	jmp lp
+fin:
+	print newline
+	hlt
+```
+output
+```
+Hello World!
+```
+
