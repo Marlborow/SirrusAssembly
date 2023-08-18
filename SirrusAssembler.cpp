@@ -1,6 +1,55 @@
 #include "SirrusAssembler.h"
-#define LABEL_ERROR std::cerr << "Error: Label not found (line " << ip << ") [" << line << "]\nLabel Expected, Got: " << tokens[1] << "\n";
-#define REGISTER_ERROR(x) std::cerr << "Error: Register not found (line " << ip << ") [" << line << "]\nRegister Expected, Got: " << x << "\n";
+#define LABEL_ERROR \
+    std::cerr << "Error: Label not found (line " << ip << ") \
+    [" << line << "]\nLabel Expected, Got: " << tokens[1] << "\n"; 
+#define REGISTER_ERROR(x) \
+    std::cerr << "Error: Register not found (line " << ip << ") \
+    [" << line << "]\nRegister Expected, Got: " << x << "\n";
+#define VARIABLE_ERROR(x) \
+    std::cerr << "Error: Variable not found (line " << ip << ") \
+    [" << line << "]\nVariable Expected, Got: " << x << "\n";
+
+
+
+int SirrusAssembler::evaluateExpression(std::string src)
+{
+    size_t plusPos = src.find('+');
+    std::string token = src.substr(0,plusPos);;
+    
+    if (plusPos == std::string::npos) {
+        return variables[token][0];
+    } else {
+        std::string remainder = src.substr(plusPos + 1);
+        if(registers.find(remainder) != registers.end())
+        {
+            return variables[token][registers[remainder]];
+        }
+        else if(variables.find(remainder) != variables.end())
+        {
+            return variables[token][variables[remainder][0]];
+        }
+        else if(isNumber(remainder))
+        {
+            return variables[token][std::stoi(remainder)];
+        }
+    }
+}
+
+
+
+std::string SirrusAssembler::extractVariableFromExpression(const std::string & expression)
+{
+    std::string result;
+    size_t pos = expression.find('+');
+    
+    if (pos != std::string::npos) {
+        result = expression.substr(0, pos);
+    } else {
+        result = expression;
+    }
+    
+    return result;
+}
 
 std::vector<std::string> SirrusAssembler::split(const std::string & s, char delimiter)
 {
@@ -49,15 +98,46 @@ void SirrusAssembler::debugPrintRegisters()
 
 int SirrusAssembler::cmd_var(std::string varName, std::string value)
 {
-   if(!isNumber(value))
-    return INT_FLAGS::ERROR_VALUE;
+    if (value.size() >= 4 && value.substr(0, 2) == "~[" && value[value.size() - 1] == ']') {
+        std::string referencedName = value.substr(2, value.size() - 3);
+        if (variables.find(referencedName) != variables.end()) {
+            variables[varName].push_back(variables[referencedName].size());
+            for (int val : variables[referencedName]) {
+                variables[varName].push_back(val);
+            }
+            return INT_FLAGS::OK;
+        } else {
+            return INT_FLAGS::ERROR_VALUE;
+        }
+    }
 
-   if(isNumber(varName))
-   return INT_FLAGS::ERROR_NAME;
+    if (value.size() >= 6 && value.substr(1, 3) == "str") {
+        value = value.substr(6, value.size() -7);
+        std::string tempVal = value;
+        int64_t encodedValue = 0;
+        for (size_t i = 0; i < tempVal.size(); i++) {
+            if (i + 2 < tempVal.size() && tempVal[i] == '^' && std::isdigit(tempVal[i + 1]) && std::isdigit(tempVal[i + 2])) {
+                variables[varName].push_back(encodedValue * 256 + std::stoi(value.substr(i + 1, 2)));
+                i += 2;
+            } else {
+                variables[varName].push_back(encodedValue * 256 + static_cast<int>(value[i]));
+            }
+            #ifdef DEBUG    
+                std::cout << "\033[31m> DEBUG: Variable: \"" << varName << "\"  PUSH VALUE " << variables[varName].back() << "| Size: " << variables[varName].size() << "\033[0m\n";
+            #endif
+        }
+        return INT_FLAGS::OK;
+    }
 
-   int varValue = std::stoi(value);
-   variables[varName] = varValue;
-   return INT_FLAGS::OK;
+    if (!isNumber(value))
+        return INT_FLAGS::ERROR_VALUE;
+
+    if (isNumber(varName))
+        return INT_FLAGS::ERROR_NAME;
+
+    int varValue = std::stoi(value);
+    variables[varName].push_back(varValue);
+    return INT_FLAGS::OK;
 }
 
 bool SirrusAssembler::isNumber(const std::string & str)
@@ -75,19 +155,21 @@ bool SirrusAssembler::cmd_mov(std::string dest, std::string src,std::string line
 {
             if (src[0] == '[' && src[src.size() - 1] == ']') {
                 src = src.substr(1, src.size() - 2);
-                if (variables.find(src) != variables.end()) {
-                    registers[dest] = variables[src];
+                if (variables.find(extractVariableFromExpression(src)) != variables.end()) {
+                    registers[dest] = evaluateExpression(src);
                     return true;
                 } else {
-                    std::cerr << "Error: Variable not found (line " << ip << ") [" << line << "]\nVariable Expected, Got: " << src << "\n";
+                    VARIABLE_ERROR(src);
+                    return false;
                 }
             } else   if (dest[0] == '[' && dest[dest.size() - 1] == ']') {
                 dest = dest.substr(1, dest.size() - 2);
                 if (variables.find(dest) != variables.end()) {
-                    variables[dest] = registers[src];
+                    variables[dest][0] = registers[src];
                     return true;
                 } else {
-                    std::cerr << "Error: Variable not found (line " << ip << ") [" << line << "]\nVariable Expected, Got: " << src << "\n";
+                    VARIABLE_ERROR(src);
+                    return false;
                 } 
             } else if(registers.find(src) != registers.end())   
             {
@@ -102,6 +184,7 @@ bool SirrusAssembler::cmd_mov(std::string dest, std::string src,std::string line
                     return true;
                 }
             }
+            std::cerr << "Error: Invalid instruction (line " << ip << ")\"" << line << "\"\n";
             return false;
 }
 
@@ -115,7 +198,8 @@ bool SirrusAssembler::cmd_add(std::string src1, std::string src2)
         }
         else if (src2[0] == '[' && src2[src2.size() - 1] == ']') {
             src2 = src2.substr(1, src2.size() - 2);
-            registers[src1] += variables[src2];
+            if(variables[src2].size() < 2)
+                registers[src1] += evaluateExpression(src2);
         }
         else
         {
@@ -139,7 +223,7 @@ bool SirrusAssembler::cmd_sub(std::string src1, std::string src2)
         }
         else if (src2[0] == '[' && src2[src2.size() - 1] == ']') {
             src2 = src2.substr(1, src2.size() - 2);
-            registers[src1] -= variables[src2];
+            registers[src1] -= evaluateExpression(src2);
         }
         else
         {
@@ -155,10 +239,40 @@ bool SirrusAssembler::cmd_sub(std::string src1, std::string src2)
 
 void SirrusAssembler::cmd_print(const std::string & src, std::string line, int ip)
 {
+    if(src == "newline"){
+        std::cout << "\n";
+    }
+    else
+    {
+        if (src.size() >= 6 && src.substr(1, 3) == "str") {
+            std::string regName = src.substr(5, src.size());
+            if (registers.find(regName) != registers.end()) {
+                int64_t value = registers[regName];
+                std::string output;
+                while (value > 0) {
+                    output = static_cast<char>(value % 256) + output;
+                    value /= 256;
+                }
+                std::cout << output;
+            } 
+            else
+            {
+                REGISTER_ERROR(regName);
+            }
+        }
+        else if (registers.find(src) != registers.end()) 
+        {
+                std::cout << registers[src];
+        }
+        else REGISTER_ERROR(src);
+    }
+
+    /*
     if (registers.find(src) != registers.end()) 
         std::cout << registers[src] << "\n";
     else 
-        REGISTER_ERROR(src); 
+        REGISTER_ERROR(src);
+    */ 
 }
 
 bool SirrusAssembler::cmd_mul(std::string src1, std::string src2)
@@ -171,7 +285,7 @@ bool SirrusAssembler::cmd_mul(std::string src1, std::string src2)
         }
         else if (src2[0] == '[' && src2[src2.size() - 1] == ']') {
             src2 = src2.substr(1, src2.size() - 2);
-            registers[src1] *= variables[src2];
+            registers[src1] *= evaluateExpression(src2);
         }
         else
         {
@@ -183,16 +297,6 @@ bool SirrusAssembler::cmd_mul(std::string src1, std::string src2)
     {
         return false;
     }
-}
-
-int SirrusAssembler::cmd_inc(std::string src)
-{
-    return registers[src] + 1;
-}
-
-int SirrusAssembler::cmd_dec(std::string src)
-{
-    return registers[src] - 1;
 }
 
 bool SirrusAssembler::cmd_cmp(std::string src1, std::string src2)
@@ -340,6 +444,7 @@ void SirrusAssembler::executeProgram(const std::string & filename)
 
     while (ip < program.size()) {
         std::string line = program[ip];
+        //std::cout << line << std::endl;
         std::vector<std::string> tokens = split(line, ' ');
 
         
@@ -359,7 +464,10 @@ void SirrusAssembler::executeProgram(const std::string & filename)
                 return;
             }
         }
-        if (cmd == "print")         cmd_print(tokens[1], line, ip);
+        if (cmd == "print")
+        {
+            cmd_print(tokens[1],line, ip);
+        } 
         if (cmd == "var")
         {
             switch(cmd_var(tokens[1],tokens[2]))
