@@ -110,11 +110,11 @@ lp:
 	mov eax [array+ebx] ;push the current array index value to eax
 	cmp eax edx         ;compare the current value with the value of hackyspaces
 	je space   
-	print (str)eax      ;print string value of eax
+	print (str)eax      ;print ascii value of eax
 	jmp after_space
 space:
 	mov eax 32            
-	print (str)eax      ;print the string value of 32 (space character)
+	print (str)eax      ;print the ascii value of 32 (blank space character)
 after_space:
 	add ebx 1           ;increment the iteration counter
 	jmp lp              ;loop once again
