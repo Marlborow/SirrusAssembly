@@ -32,7 +32,7 @@ swap:
 	mov edx [i]
 	mov eax [swap+edx]
 	add edx 1
-	mov [i+0] edx         ;weird bug, needs to reference the index of the variable.
+	mov [i] edx
 	mov edx [hackyspaces]
 	jmp endswap
 noswap:
