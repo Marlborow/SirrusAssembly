@@ -35,6 +35,30 @@ int SirrusAssembler::evaluateExpression(std::string src)
     }
 }
 
+int SirrusAssembler::evaluateExpressionIndex(std::string src)
+{
+    size_t plusPos = src.find('+');
+    std::string token = src.substr(0,plusPos);;
+    
+    if (plusPos == std::string::npos) {
+        return variables[token][0];
+    } else {
+        std::string remainder = src.substr(plusPos + 1);
+        if(registers.find(remainder) != registers.end())
+        {
+            return registers[remainder];
+        }
+        else if(variables.find(remainder) != variables.end())
+        {
+            return variables[remainder][0];
+        }
+        else if(isNumber(remainder))
+        {
+            return std::stoi(remainder);
+        }
+    }
+}
+
 
 
 std::string SirrusAssembler::extractVariableFromExpression(const std::string & expression)
@@ -164,8 +188,8 @@ bool SirrusAssembler::cmd_mov(std::string dest, std::string src,std::string line
                 }
             } else   if (dest[0] == '[' && dest[dest.size() - 1] == ']') {
                 dest = dest.substr(1, dest.size() - 2);
-                if (variables.find(dest) != variables.end()) {
-                    variables[dest][0] = registers[src];
+                if (variables.find(extractVariableFromExpression(dest)) != variables.end()) {
+                    variables[extractVariableFromExpression(dest)][evaluateExpressionIndex(dest)] = registers[src];
                     return true;
                 } else {
                     VARIABLE_ERROR(src);
@@ -320,9 +344,28 @@ bool SirrusAssembler::cmd_cmp(std::string src1, std::string src2)
         }
         return false;
     }
-    return false;
-
-    std::cout << cmp_reg << std::endl;
+    else
+    {
+        if(isNumber(src2))
+        {
+            if  (registers[src1] < std::stoi(src2))
+            {
+                cmp_reg = CMP_OUT::LT;
+                return true;
+            } 
+            else if (registers[src1] > std::stoi(src2))  
+            {
+                cmp_reg = CMP_OUT::GT;
+                return true;
+            }
+            else if (registers[src1] == std::stoi(src2)) 
+            {
+                cmp_reg = CMP_OUT::EQ;
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 bool SirrusAssembler::cmd_jmp(std::string label,int & ip)
