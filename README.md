@@ -79,7 +79,6 @@ lp:
 	cmp ebx ecx
 	je fin
 	mov eax [array+ebx]
-	cmp eax edx
 	print (str)eax
 	add ebx 1
 	jmp lp
