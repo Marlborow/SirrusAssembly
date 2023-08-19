@@ -38,10 +38,10 @@ int SirrusAssembler::evaluateExpression(std::string src)
 int SirrusAssembler::evaluateExpressionIndex(std::string src)
 {
     size_t plusPos = src.find('+');
-    std::string token = src.substr(0,plusPos);;
+    std::string token = src.substr(0,plusPos);
     
     if (plusPos == std::string::npos) {
-        return variables[token][0];
+        return 0;
     } else {
         std::string remainder = src.substr(plusPos + 1);
         if(registers.find(remainder) != registers.end())
