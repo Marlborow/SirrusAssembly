@@ -35,6 +35,7 @@ class SirrusAssembler
     
     //functions
     int evaluateExpression(std::string src);
+    int evaluateExpressionIndex(std::string src);
     std::string extractVariableFromExpression(const std::string& expression);
     std::vector<std::string> split(const std::string &s, char delimiter);
     std::vector<std::string> removeIndents(const std::vector<std::string> &lines);
