@@ -14,9 +14,10 @@
 class SirrusAssembler
 {
     private:
-    enum CMP_OUT { EQ = 0, GT, LT };
+    enum CMP_OUT { EQ = 0, GT, LT};
     enum JMP_FLAGS { ERROR = 0, FALSE, TRUE};
-    enum INT_FLAGS { ERROR_NAME = 0, ERROR_VALUE, OK};
+    enum INT_FLAGS { ERROR_NAME = 0, ERROR_VALUE, OK, ERROR_NULLPTR};
+    enum PUSH_FLAGS {ERROR_PNAME = 0, ERROR_PVALUE, ERROR_OOS,POK};
 
     //variables
     std::unordered_map<std::string, int> registers = {
@@ -30,6 +31,7 @@ class SirrusAssembler
 
     std::unordered_map<std::string, int> labels;
     std::unordered_map<std::string, std::vector<int>> variables;
+    std::vector<int> t_stack; //temporary stack for storing input
     std::vector<int> retpoints;
     
     
@@ -49,6 +51,9 @@ class SirrusAssembler
     bool cmd_sub    (std::string src1, std::string src2);
     bool cmd_mul    (std::string src1, std::string src2);
     void cmd_print  (const std::string & src, std::string line, int ip);
+    void cmd_input ();
+    int  cmd_pop   (std::string src1,std::string line, int & ip);
+    int  cmd_push  (std::string dest, std::string src, std::string line, int & ip);
 
     bool cmd_cmp    (std::string src1,std::string src2);
     bool cmd_jmp    (std::string label, int & ip);
