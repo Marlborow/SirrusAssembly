@@ -8,6 +8,9 @@
 #define VARIABLE_ERROR(x) \
     std::cerr << "Error: Variable not found (line " << ip << ") \
     [" << line << "]\nVariable Expected, Got: " << x << "\n";
+#define NULLPTR_ERROR(x) \
+    std::cerr << "Error: Variable you are trying to reference is null (line " << ip << ") \
+    [" << line << "]\nVariable Expected, Got: " << x << "\n";
 
 
 
@@ -125,6 +128,12 @@ int SirrusAssembler::cmd_var(std::string varName, std::string value)
     if (value.size() >= 4 && value.substr(0, 2) == "~[" && value[value.size() - 1] == ']') {
         std::string referencedName = value.substr(2, value.size() - 3);
         if (variables.find(referencedName) != variables.end()) {
+            
+            //if referenced Variable is empty/null error handle!
+            if(variables[referencedName].empty())
+                return INT_FLAGS::ERROR_NULLPTR;
+
+
             variables[varName].push_back(variables[referencedName].size());
             for (int val : variables[referencedName]) {
                 variables[varName].push_back(val);
@@ -153,8 +162,16 @@ int SirrusAssembler::cmd_var(std::string varName, std::string value)
         return INT_FLAGS::OK;
     }
 
+    if(value == "nullptr") 
+    {
+        variables[varName] = std::vector<int>();
+        return INT_FLAGS::OK;
+    }
+
     if (!isNumber(value))
+    {
         return INT_FLAGS::ERROR_VALUE;
+    }
 
     if (isNumber(varName))
         return INT_FLAGS::ERROR_NAME;
@@ -180,6 +197,14 @@ bool SirrusAssembler::cmd_mov(std::string dest, std::string src,std::string line
             if (src[0] == '[' && src[src.size() - 1] == ']') {
                 src = src.substr(1, src.size() - 2);
                 if (variables.find(extractVariableFromExpression(src)) != variables.end()) {
+
+                    //check if variable is null and if it is then return -1
+                    if (variables[extractVariableFromExpression(src)].empty())
+                    {
+                        registers[dest] = -1;
+                        return true;
+                    }
+
                     registers[dest] = evaluateExpression(src);
                     return true;
                 } else {
@@ -297,6 +322,62 @@ void SirrusAssembler::cmd_print(const std::string & src, std::string line, int i
     else 
         REGISTER_ERROR(src);
     */ 
+}
+
+void SirrusAssembler::cmd_input()
+{
+    t_stack.clear();
+    std::string tempstr;
+    std::getline(std::cin, tempstr);
+    std::reverse(tempstr.begin(), tempstr.end());
+
+    int64_t encodedValue = 0;
+    for (size_t i = 0; i < tempstr.size(); i++) 
+    {
+        t_stack.push_back(encodedValue * 256 + static_cast<int>(tempstr[i]));
+    }
+
+    t_stack.push_back(tempstr.size());
+}
+
+int SirrusAssembler::cmd_pop(std::string src1, std::string line, int & ip)
+{
+    if(registers.find(src1) != registers.end())
+    {
+        int res = t_stack.back();
+        t_stack.pop_back();
+        registers[src1] = res;
+        return true;
+    }
+    REGISTER_ERROR(src1)
+    return false;
+}
+
+int SirrusAssembler::cmd_push(std::string dest, std::string src, std::string line, int & ip)
+{   
+    if (dest[0] == '[' && dest[dest.size() - 1] == ']') 
+    {
+        dest = dest.substr(1, dest.size() - 2);
+        if (variables.find(extractVariableFromExpression(dest)) != variables.end()) 
+        {
+            //continue to check if src is number or register
+            if(isNumber(src))
+            {
+                variables[extractVariableFromExpression(dest)].push_back(std::stoi(src));
+                return PUSH_FLAGS::POK;
+            }
+
+            if(registers.find(src) != registers.end())
+            {
+                variables[extractVariableFromExpression(dest)].push_back(registers[src]);
+                return PUSH_FLAGS::POK;
+            }
+        } else 
+        {
+            VARIABLE_ERROR(dest);
+            return PUSH_FLAGS::ERROR_PNAME;
+        }
+    } 
 }
 
 bool SirrusAssembler::cmd_mul(std::string src1, std::string src2)
@@ -507,6 +588,29 @@ void SirrusAssembler::executeProgram(const std::string & filename)
                 return;
             }
         }
+        if (cmd == "input")
+        {
+            cmd_input();
+        }
+        if (cmd == "push")
+        {
+           switch(cmd_push(tokens[1], tokens[2], line, ip))
+           {
+                case PUSH_FLAGS::ERROR_PNAME:
+                    return;
+                    break;
+                case PUSH_FLAGS::ERROR_PVALUE:
+                    return;
+                    break;
+                case PUSH_FLAGS::ERROR_OOS:
+                    return;
+                    break;
+           }
+        }
+        if (cmd == "pop")
+        {
+            cmd_pop(tokens[1],line,ip);
+        }
         if (cmd == "print")
         {
             cmd_print(tokens[1],line, ip);
@@ -521,6 +625,10 @@ void SirrusAssembler::executeProgram(const std::string & filename)
                     break;
                 case INT_FLAGS::ERROR_VALUE:
                     std::cerr << "Error: Tried to initialize a Variable with a string value (line " << ip << ") [" << line << "]\nNumber Expected, Got: " << tokens[2] << "\n";
+                    return;
+                    break;
+                case INT_FLAGS::ERROR_NULLPTR:
+                    NULLPTR_ERROR(tokens[2])
                     return;
                     break;
                 default:
