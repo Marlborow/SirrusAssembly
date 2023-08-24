@@ -41,7 +41,6 @@ _main:
 
 lp:
 
-	mov edx 32
 	mov eax [i]
 	mov ebx [l]
 	cmp eax ebx
