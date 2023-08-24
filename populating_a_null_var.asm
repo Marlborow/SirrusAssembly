@@ -3,7 +3,7 @@
 ;title:  Populating a NULL Variable
 
 ;INFOMATION:
-;when input is made it stores the value you enter into a temporary stack like this:
+;when input is called it stores the value you enter into a temporary stack like this:
 
 ;example 'test'
 ; [length] 4
