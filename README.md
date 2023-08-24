@@ -2,7 +2,7 @@
 Bask in the glory of my terrible coding practices!
 It has four registers `eax, ebx, ecx, edx`.
 Functions include:
-`mov,add,mul,sub,var,jmp,jl,jg,je,ret,hlt`
+`mov,add,mul,sub,var,jmp,jl,jg,je,ret,hlt,push,pop,input`
 
 Currently increment and decrement does not work.
 
