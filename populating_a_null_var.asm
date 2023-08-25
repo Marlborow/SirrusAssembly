@@ -3,7 +3,7 @@
 ;title:  Populating a NULL Variable
 
 ;INFOMATION:
-;when input is called it stores the value you enter into a temporary stack like this:
+;when input is made it stores the value you enter into a temporary stack like this:
 
 ;example 'test'
 ; [length] 4
@@ -40,7 +40,7 @@ _main:
 	mov [l] eax
 
 lp:
-
+	mov edx 32
 	mov eax [i]
 	mov ebx [l]
 	cmp eax ebx
@@ -55,8 +55,8 @@ lp:
 	mov [i] eax
 	jmp lp
 fin:
-
 	var osize ~[o]
+lp2:
 	mov edx [osize]
 
 	cmp ecx edx
@@ -66,7 +66,7 @@ fin:
 	print (str)eax
 
 	add ecx 1
-	jmp fin
+	jmp lp2
 
 
 fin2:
