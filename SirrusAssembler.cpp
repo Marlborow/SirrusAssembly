@@ -14,6 +14,24 @@
 
 
 
+std::string SirrusAssembler::stringIntDecode(std::vector<int>& encodedValues)
+{
+    std::string decodedValue;
+    for (int value : encodedValues) {
+        int byte = value % 256;
+        decodedValue += static_cast<char>(byte);
+    }
+    return decodedValue;
+}
+
+std::vector<int>  SirrusAssembler::stringIntEncode(const std::string &value) {
+    std::vector<int> encodedValue;
+    for (size_t i = 0; i < value.size(); i++) {
+        encodedValue.push_back(static_cast<int>(value[i]));
+    }
+    return encodedValue;
+}
+
 int SirrusAssembler::evaluateExpression(std::string src)
 {
     size_t plusPos = src.find('+');
@@ -171,16 +189,36 @@ int SirrusAssembler::processMacroInvocation(const std::string & line, int & ip)
             }
 
             std::string key = "%" + std::to_string(i);
-
-            //Check if value is a variable
-            if(variables.find(value) != variables.end())
+            std::string reference = "&";
+            //check if value is a reference to variable
+            if(value[0] == '&')
             {
-                pregisters[key] = variables[value];
+                std::string modifiedValue = value.substr(1); 
+                //dont allow register.
+                if(registers.find(modifiedValue) != registers.end())
+                {
+                    std::cerr << "Error: Cannot invoke a Macro with a reference to a register! " << "(line " << ip << ")\"" << line << "\"\n";
+                    return MACRO_FLAGS::ERROR_MPARAM;
+                }
+
+                //Check if value is a variable
+                if(variables.find(modifiedValue) != variables.end())
+                {
+                    pregisters[key] = stringIntEncode(modifiedValue);
+                }
             }
-
-            if(registers.find(value) != registers.end())
+            else
             {
-                pregisters[key][0] = registers[value];
+                //Check if value is a variable
+                if(variables.find(value) != variables.end())
+                {
+                    pregisters[key] = variables[value];
+                }
+
+                if(registers.find(value) != registers.end())
+                {
+                    pregisters[key][0] = registers[value];
+                }
             }
         }
     }
@@ -358,8 +396,19 @@ bool SirrusAssembler::cmd_mov(std::string dest, std::string src,std::string line
                             registers[dest] = -1;
                             return true;
                         }
-                        registers[dest] = pregisters[extractVariableFromExpression(src)][evaluateExpressionIndex(src)];
-                        return true;
+
+                        //Check if its a reference
+                        std::string variable = stringIntDecode(pregisters[extractVariableFromExpression(src)]);
+                        if(variables.find(variable) != variables.end())
+                        {
+                            registers[dest] = variables[variable][evaluateExpressionIndex(src)];
+                            return true;
+                        }
+                        else
+                        {
+                            registers[dest] = pregisters[extractVariableFromExpression(src)][evaluateExpressionIndex(src)];
+                            return true;
+                        }
                     }
                 }
 
@@ -380,6 +429,27 @@ bool SirrusAssembler::cmd_mov(std::string dest, std::string src,std::string line
                 }
             } else   if (dest[0] == '[' && dest[dest.size() - 1] == ']') {
                 dest = dest.substr(1, dest.size() - 2);
+
+                if(isInMacro)
+                {
+                    if(pregisters.find(extractVariableFromExpression(dest)) != pregisters.end())
+                    {
+                        //Check if its a reference
+                        std::string variable = stringIntDecode(pregisters[extractVariableFromExpression(dest)]);
+                        if(variables.find(variable) != variables.end())
+                        {
+                            variables[variable][evaluateExpressionIndex(dest)] = registers[src];
+                            return true;
+                        }
+                        else
+                        {
+                            pregisters[extractVariableFromExpression(src)][evaluateExpressionIndex(src)] = registers[src];
+                            return true;
+                        }
+                    }
+                }
+
+
                 if (variables.find(extractVariableFromExpression(dest)) != variables.end()) {
                     variables[extractVariableFromExpression(dest)][evaluateExpressionIndex(dest)] = registers[src];
                     return true;
