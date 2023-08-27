@@ -5,13 +5,6 @@
 ;they are arrays rather then only being able to hold
 ;an integer.
 
-;Future optimizations required.
-
-;DO NOT USE LABELS IN MACRO FUNCTIONS AS I'VE NOT CODED RETURNS
-;TO WORK WELL WITHIN MACRO'S.
-;	Instead specify the reletive line with +/- number
-; 	example to jump 5 lines ahead "jmp +5"
-
 %macro _print 2
 	mov ebx 0
 	mov edx [hackyspaces]
