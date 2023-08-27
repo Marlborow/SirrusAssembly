@@ -621,8 +621,13 @@ bool SirrusAssembler::cmd_jmp(std::string label,int & ip)
     if (isNumber(label)) {
         ip += std::stoi(label);
         return true;
-    } else if (labels.find(label) != labels.end()) {
-        retpoints.push_back(ip + 1);
+    } 
+    else if (labels.find(label) != labels.end()) 
+    {
+
+        if(!isInMacro)
+            retpoints.push_back(ip + 1);
+
         ip = labels[label];  // Jump to the specified label
         return true;
     }
@@ -642,7 +647,9 @@ int SirrusAssembler::cmd_je(std::string label, int & ip)
         if (labels.find(label) == labels.end()) 
         return JMP_FLAGS::ERROR;
 
-        retpoints.push_back(ip + 1);
+        if(!isInMacro)
+            retpoints.push_back(ip + 1);
+
         ip = labels[label];  // Jump to the specified label
         return JMP_FLAGS::TRUE;
     }
@@ -662,8 +669,9 @@ int SirrusAssembler::cmd_jg(std::string label, int & ip)
         if (labels.find(label) == labels.end()) 
         return JMP_FLAGS::ERROR;
 
-
-        retpoints.push_back(ip + 1);
+        if(!isInMacro)
+            retpoints.push_back(ip + 1);
+        
         ip = labels[label];  // Jump to the specified label
         return JMP_FLAGS::TRUE;
     }
@@ -682,7 +690,9 @@ int SirrusAssembler::cmd_jl(std::string label, int & ip)
         if (labels.find(label) == labels.end()) 
         return JMP_FLAGS::ERROR;
 
-        retpoints.push_back(ip + 1);
+        if(!isInMacro)
+            retpoints.push_back(ip + 1);
+
         ip = labels[label];  // Jump to the specified label
         return JMP_FLAGS::TRUE;
     }
