@@ -204,7 +204,7 @@ int SirrusAssembler::processMacroInvocation(const std::string & line, int & ip)
                 //Check if value is a variable
                 if(variables.find(modifiedValue) != variables.end())
                 {
-                    pregisters[key] = stringIntEncode(modifiedValue);
+                    pregisters[key] = stringIntEncode("mref_" + modifiedValue);
                 }
             }
             else
@@ -381,24 +381,27 @@ bool SirrusAssembler::isNumber(const std::string & str)
         return false; 
     }
 }
-
+//stringIntEncode("mref_" + modifiedValue);
 bool SirrusAssembler::cmd_mov(std::string dest, std::string src,std::string line, int & ip)
 {
 
             if (src[0] == '[' && src[src.size() - 1] == ']') {
                 src = src.substr(1, src.size() - 2);
+                std::string macroSrc = extractVariableFromExpression(src);
                 if(isInMacro)
                 {
-                    if(pregisters.find(extractVariableFromExpression(src)) != pregisters.end())
+                    if(pregisters.find(macroSrc) != pregisters.end())
                     {
-                        if (pregisters[extractVariableFromExpression(src)].empty())
+                        if (pregisters[macroSrc].empty())
                         {
                             registers[dest] = -1;
                             return true;
                         }
 
                         //Check if its a reference
-                        std::string variable = stringIntDecode(pregisters[extractVariableFromExpression(src)]);
+                        std::string capturedVariable = stringIntDecode(pregisters[macroSrc]);
+                        std::string variable = capturedVariable.substr(5);
+
                         if(variables.find(variable) != variables.end())
                         {
                             registers[dest] = variables[variable][evaluateExpressionIndex(src)];
@@ -429,13 +432,15 @@ bool SirrusAssembler::cmd_mov(std::string dest, std::string src,std::string line
                 }
             } else   if (dest[0] == '[' && dest[dest.size() - 1] == ']') {
                 dest = dest.substr(1, dest.size() - 2);
-
+                std::string macroDest = extractVariableFromExpression(dest);
                 if(isInMacro)
                 {
-                    if(pregisters.find(extractVariableFromExpression(dest)) != pregisters.end())
+                    if(pregisters.find(macroDest) != pregisters.end())
                     {
                         //Check if its a reference
-                        std::string variable = stringIntDecode(pregisters[extractVariableFromExpression(dest)]);
+                        std::string capturedVariable = stringIntDecode(pregisters[macroDest]);
+                        std::string variable = capturedVariable.substr(5);
+
                         if(variables.find(variable) != variables.end())
                         {
                             variables[variable][evaluateExpressionIndex(dest)] = registers[src];
