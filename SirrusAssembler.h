@@ -54,6 +54,8 @@ class SirrusAssembler
     
 //functions
 
+    std::string stringIntDecode(std::vector<int>& encodedValues);
+    std::vector<int> stringIntEncode(const std::string & value);
 
     //expression interpreting
     int evaluateExpression(std::string src);
