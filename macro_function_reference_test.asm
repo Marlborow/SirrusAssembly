@@ -14,8 +14,9 @@
 
 ;example '[macro] [&argument,&argument]'
 
-;this tells the code to copy the label to the macro registers
-;instead of the value of the variable passed as an argument.
+;instead of the value of the variable passed as an argument,
+;the label will be passed and used to check for existing variables
+;with such a label.
 
 ;Working Example below:
 %macro increment 1
