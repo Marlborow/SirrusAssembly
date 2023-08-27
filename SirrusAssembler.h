@@ -16,8 +16,9 @@ class SirrusAssembler
     private:
     enum CMP_OUT { EQ = 0, GT, LT};
     enum JMP_FLAGS { ERROR = 0, FALSE, TRUE};
-    enum INT_FLAGS { ERROR_NAME = 0, ERROR_VALUE, OK, ERROR_NULLPTR};
+    enum INT_FLAGS { ERROR_NAME = 0, ERROR_VALUE, OK, ERROR_NULLPTR, ERROR_BADARRAY};
     enum PUSH_FLAGS {ERROR_PNAME = 0, ERROR_PVALUE, ERROR_OOS,POK};
+    enum MACRO_FLAGS {ERROR_MPARAM = 0, ERROR_MNAME, MOK, ERROR_HIGHNUM,ERROR_MEXPRESSION};
 
     //variables
     std::unordered_map<std::string, int> registers = {
@@ -26,6 +27,13 @@ class SirrusAssembler
         {"ecx",0},
         {"edx",0},
     };
+    //Macro Parameter Registers
+    std::unordered_map<std::string, std::vector<int>> pregisters = {
+        {"%1",{}},
+        {"%2",{}},
+        {"%3",{}},
+        {"%4",{}},
+    };
 
     int cmp_reg;
 
@@ -33,12 +41,30 @@ class SirrusAssembler
     std::unordered_map<std::string, std::vector<int>> variables;
     std::vector<int> t_stack; //temporary stack for storing input
     std::vector<int> retpoints;
+
+
+    struct Macro {
+        std::string name;
+        int point;
+        int parameters;
+    };
+
+    std::unordered_map<std::string, Macro> macros;
     
     
-    //functions
+//functions
+
+
+    //expression interpreting
     int evaluateExpression(std::string src);
     int evaluateExpressionIndex(std::string src);
     std::string extractVariableFromExpression(const std::string& expression);
+
+    //macro interpreting
+    bool isInMacro = false; 
+    int processMacroDefinition(const std::string& line, int & ip);
+    int processMacroInvocation(const std::string& line, int & ip);
+
     std::vector<std::string> split(const std::string &s, char delimiter);
     std::vector<std::string> removeIndents(const std::vector<std::string> &lines);
     void printRegisterValue(const std::string &regName);
