@@ -1,10 +1,23 @@
 ;Macro Functions test
 ;Macro's have a limit of 4 arguments.
 
-;To make it simple they're just like registers only
-;they are arrays rather then only being able to hold
-;an integer.
+;Author: Wesley Marlborow
+;Date:   27/08/2023
+;title:  Macro Functions test
 
+;INFOMATION:
+
+;you create a macro with '%macro [label] [argument size]'
+;you reference the arguments with '%1, %2, %3 or %4'
+;you end a macro with '%endmacro'
+
+;Macro registers are like variables that hold the variable data
+;of the arguments used to invoke the macro.
+
+;There's no need to ret within the macro as once it reaches the line "%endmacro"
+;ret is invoked.
+
+;Example bellow: (Print function example)
 %macro _print 2
 	mov ebx 0
 	mov edx [hackyspaces]
