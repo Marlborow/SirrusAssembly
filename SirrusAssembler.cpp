@@ -62,6 +62,23 @@ int SirrusAssembler::evaluateExpressionIndex(std::string src)
     }
 }
 
+std::vector<std::string> SirrusAssembler::split(const std::string & s, char delimiter)
+{
+    std::vector<std::string> tokens;
+    std::string token;
+    std::istringstream tokenStream(s);
+
+    while (std::getline(tokenStream, token, delimiter)) 
+    {
+        // Remove any trailing whitespace characters
+        if (!token.empty()) 
+        {
+            token = token.substr(0, token.find_last_not_of(" \t\r\n") + 1);
+            tokens.push_back(token);
+        }
+    }
+    return tokens;
+}
 
 
 std::string SirrusAssembler::extractVariableFromExpression(const std::string & expression)
@@ -78,20 +95,101 @@ std::string SirrusAssembler::extractVariableFromExpression(const std::string & e
     return result;
 }
 
-std::vector<std::string> SirrusAssembler::split(const std::string & s, char delimiter)
+int SirrusAssembler::processMacroDefinition(const std::string & line,int & ip)
 {
-    std::vector<std::string> tokens;
-    std::string token;
-    std::istringstream tokenStream(s);
+    std::vector<std::string> tokens = split(line, ' ');
+    if (!tokens.empty() && tokens[0].front() == '%')
+    {
+        if (tokens[0] == "%macro") {
+            Macro macro;
+            macro.name = tokens[1];
+            macro.point = ip;
+            //check if the macro name is a register or a label (and stop the program if so)
+            if (isNumber(macro.name) || registers.find(macro.name) != registers.end() || labels.find(macro.name) != labels.end())
+            {
+                std::cerr << "Error: Invalid Macro definition: Incorrect Label  (line " << ip << ")\"" << line << "\"\n";
+                return MACRO_FLAGS::ERROR_MNAME;
+            }
 
-    while (std::getline(tokenStream, token, delimiter)) {
-        // Remove any trailing whitespace characters
-        if (!token.empty()) {
-            token = token.substr(0, token.find_last_not_of(" \t\r\n") + 1);
-            tokens.push_back(token);
+            if (tokens.size() > 2) 
+            {
+                //check if macro paramiters is a number and then append the value of the given paramiters to the current macro.
+                if(isNumber(tokens[2]))
+                {
+                    if(std::stoi(tokens[2]) > 4)
+                    {
+                        std::cerr << "Error: Macro definition Limit Exeeded: " << tokens[2] << "/4 (line " << ip << ")\"" << line << "\"\n";
+                        return MACRO_FLAGS::ERROR_HIGHNUM;
+                    }
+                    macro.parameters = std::stoi(tokens[2]);
+                }
+                else 
+                {
+                    std::cerr << "Error: Invalid Macro definition: Number Expected (line " << ip << ")\"" << line << "\"\n";
+                    return MACRO_FLAGS::ERROR_MPARAM;
+                }
+            }
+            macros[macro.name] = macro;
+            return MACRO_FLAGS::MOK;
+        }
+        else
+        {
+            return MACRO_FLAGS::MOK;
         }
     }
-    return tokens;
+    return MACRO_FLAGS::MOK;
+
+}
+
+int SirrusAssembler::processMacroInvocation(const std::string & line, int & ip)
+{
+    std::vector<std::string> tokens = split(line, ' ');
+    std::string label = tokens[0];
+    if(tokens.size() > 1)
+    {
+        std::string expression = tokens[1];
+        // Removing square brackets and spaces
+        //first check if the expression is incorrect format
+        if(expression[0] != '[' ||  expression[expression.size() -1] != ']')
+        {
+            std::cerr << "Error: Invalid Invocation of Macro: Expression Error \"" << line << "\"\n";
+            return MACRO_FLAGS::ERROR_MEXPRESSION;
+        }
+        
+        expression = expression .substr(1, expression .size() - 2);
+        std::istringstream iss(expression );
+
+        std::string value;
+        int i = 0;
+        while (std::getline(iss, value, ',')) 
+        {
+            i++;
+            if(i > macros[tokens[0]].parameters) 
+            {
+                std::cerr << "Error: Macro \"" << tokens[0] << "\" "<< macros[tokens[0]].parameters <<" Param Limit Exeeded " << "(line " << ip << ")\"" << line << "\"\n";
+                return MACRO_FLAGS::ERROR_HIGHNUM;
+            }
+
+            std::string key = "%" + std::to_string(i);
+
+            //Check if value is a variable
+            if(variables.find(value) != variables.end())
+            {
+                pregisters[key] = variables[value];
+            }
+
+            if(registers.find(value) != registers.end())
+            {
+                pregisters[key][0] = registers[value];
+            }
+        }
+    }
+
+    //create retpoint
+    //and move instruction pointer
+    retpoints.push_back(ip + 1);
+    ip = (macros[tokens[0]].point);
+    return MACRO_FLAGS::MOK;
 }
 
 std::vector<std::string> SirrusAssembler::removeIndents(const std::vector<std::string>& lines)
@@ -118,67 +216,121 @@ void SirrusAssembler::printRegisterValue(const std::string & regName)
 
 void SirrusAssembler::debugPrintRegisters()
 {
-      for (const auto& pair : registers) {
-        std::cout << pair.first << " : " << pair.second << "\n";
+    std::cout <<"\n";
+    std::cout << "REGISTERS:" << std::endl;
+    for (const auto& pair : registers) 
+    {
+        std::cout << " >" << pair.first << " : " << pair.second << "\n";
     }
+
+    std::cout << "VARIABLES:" << std::endl;
+    for (const auto& pair : variables) 
+    {
+        std::cout << " >" << pair.first << " : " << pair.second.size() << "\n";
+    }
+    std::cout <<"\n";
+    std::cout <<"\n";
+
 }
 
 int SirrusAssembler::cmd_var(std::string varName, std::string value)
 {
-    if (value.size() >= 4 && value.substr(0, 2) == "~[" && value[value.size() - 1] == ']') {
-        std::string referencedName = value.substr(2, value.size() - 3);
-        if (variables.find(referencedName) != variables.end()) {
-            
-            //if referenced Variable is empty/null error handle!
-            if(variables[referencedName].empty())
-                return INT_FLAGS::ERROR_NULLPTR;
+    bool isArrayFormat = true;
+    for (char c : value) 
+    {
+        if (!std::isdigit(c) && c != ',') 
+        {
+            isArrayFormat = false;
+            break;
+        }
+    }
+
+    if (isArrayFormat) 
+    {
+        std::vector<int> values;
+        std::stringstream ss(value);
+        std::string item;
+        
+        while (getline(ss, item, ',')) 
+        {
+            values.push_back(std::stoi(item));
+        }
+        
+        // Assign the 'values' vector to the 'varName' in the 'variables' map
+        variables[varName] = values;
+        
+        return INT_FLAGS::OK;
+    }
+    else
+    {
+
+        bool isBrokenArrayFormat = false;
+        for (char c : value) {
+            if (c == ',') {
+                isBrokenArrayFormat = true;
+                break;
+            }
+        }
+
+        if(isBrokenArrayFormat)
+            return INT_FLAGS::ERROR_BADARRAY;
 
 
-            variables[varName].push_back(variables[referencedName].size());
-            for (int val : variables[referencedName]) {
-                variables[varName].push_back(val);
+        if (value.size() >= 4 && value.substr(0, 2) == "~[" && value[value.size() - 1] == ']') {
+            std::string referencedName = value.substr(2, value.size() - 3);
+            if (variables.find(referencedName) != variables.end()) {
+                
+                //if referenced Variable is empty/null error handle!
+                if(variables[referencedName].empty())
+                    return INT_FLAGS::ERROR_NULLPTR;
+
+
+                variables[varName].push_back(variables[referencedName].size());
+                for (int val : variables[referencedName]) {
+                    variables[varName].push_back(val);
+                }
+                return INT_FLAGS::OK;
+            } else {
+                return INT_FLAGS::ERROR_VALUE;
+            }
+        }
+
+        if (value.size() >= 6 && value.substr(1, 3) == "str") {
+            value = value.substr(6, value.size() -7);
+            std::string tempVal = value;
+            int64_t encodedValue = 0;
+            for (size_t i = 0; i < tempVal.size(); i++) {
+                if (i + 2 < tempVal.size() && tempVal[i] == '^' && std::isdigit(tempVal[i + 1]) && std::isdigit(tempVal[i + 2])) {
+                    variables[varName].push_back(encodedValue * 256 + std::stoi(value.substr(i + 1, 2)));
+                    i += 2;
+                } else {
+                    variables[varName].push_back(encodedValue * 256 + static_cast<int>(value[i]));
+                }
+                #ifdef DEBUG    
+                    std::cout << "\033[31m> DEBUG: Variable: \"" << varName << "\"  PUSH VALUE " << variables[varName].back() << "| Size: " << variables[varName].size() << "\033[0m\n";
+                #endif
             }
             return INT_FLAGS::OK;
-        } else {
+        }
+
+        if(value == "nullptr") 
+        {
+            variables[varName] = std::vector<int>();
+            return INT_FLAGS::OK;
+        }
+
+        if (!isNumber(value))
+        {
             return INT_FLAGS::ERROR_VALUE;
         }
-    }
 
-    if (value.size() >= 6 && value.substr(1, 3) == "str") {
-        value = value.substr(6, value.size() -7);
-        std::string tempVal = value;
-        int64_t encodedValue = 0;
-        for (size_t i = 0; i < tempVal.size(); i++) {
-            if (i + 2 < tempVal.size() && tempVal[i] == '^' && std::isdigit(tempVal[i + 1]) && std::isdigit(tempVal[i + 2])) {
-                variables[varName].push_back(encodedValue * 256 + std::stoi(value.substr(i + 1, 2)));
-                i += 2;
-            } else {
-                variables[varName].push_back(encodedValue * 256 + static_cast<int>(value[i]));
-            }
-            #ifdef DEBUG    
-                std::cout << "\033[31m> DEBUG: Variable: \"" << varName << "\"  PUSH VALUE " << variables[varName].back() << "| Size: " << variables[varName].size() << "\033[0m\n";
-            #endif
-        }
+        if (isNumber(varName))
+            return INT_FLAGS::ERROR_NAME;
+
+        int varValue = std::stoi(value);
+        variables[varName].push_back(varValue);
         return INT_FLAGS::OK;
     }
-
-    if(value == "nullptr") 
-    {
-        variables[varName] = std::vector<int>();
-        return INT_FLAGS::OK;
-    }
-
-    if (!isNumber(value))
-    {
-        return INT_FLAGS::ERROR_VALUE;
-    }
-
-    if (isNumber(varName))
-        return INT_FLAGS::ERROR_NAME;
-
-    int varValue = std::stoi(value);
-    variables[varName].push_back(varValue);
-    return INT_FLAGS::OK;
 }
 
 bool SirrusAssembler::isNumber(const std::string & str)
@@ -194,8 +346,23 @@ bool SirrusAssembler::isNumber(const std::string & str)
 
 bool SirrusAssembler::cmd_mov(std::string dest, std::string src,std::string line, int & ip)
 {
+
             if (src[0] == '[' && src[src.size() - 1] == ']') {
                 src = src.substr(1, src.size() - 2);
+                if(isInMacro)
+                {
+                    if(pregisters.find(extractVariableFromExpression(src)) != pregisters.end())
+                    {
+                        if (pregisters[extractVariableFromExpression(src)].empty())
+                        {
+                            registers[dest] = -1;
+                            return true;
+                        }
+                        registers[dest] = pregisters[extractVariableFromExpression(src)][evaluateExpressionIndex(src)];
+                        return true;
+                    }
+                }
+
                 if (variables.find(extractVariableFromExpression(src)) != variables.end()) {
 
                     //check if variable is null and if it is then return -1
@@ -451,7 +618,10 @@ bool SirrusAssembler::cmd_cmp(std::string src1, std::string src2)
 
 bool SirrusAssembler::cmd_jmp(std::string label,int & ip)
 {
-    if (labels.find(label) != labels.end()) {
+    if (isNumber(label)) {
+        ip += std::stoi(label);
+        return true;
+    } else if (labels.find(label) != labels.end()) {
         retpoints.push_back(ip + 1);
         ip = labels[label];  // Jump to the specified label
         return true;
@@ -461,11 +631,17 @@ bool SirrusAssembler::cmd_jmp(std::string label,int & ip)
 
 int SirrusAssembler::cmd_je(std::string label, int & ip)
 {
-    if (labels.find(label) == labels.end()) 
-    return JMP_FLAGS::ERROR;
 
     if (cmp_reg == CMP_OUT::EQ) 
     {
+        if (isNumber(label)) {
+            ip += std::stoi(label);
+            return JMP_FLAGS::TRUE;
+        }
+
+        if (labels.find(label) == labels.end()) 
+        return JMP_FLAGS::ERROR;
+
         retpoints.push_back(ip + 1);
         ip = labels[label];  // Jump to the specified label
         return JMP_FLAGS::TRUE;
@@ -475,11 +651,18 @@ int SirrusAssembler::cmd_je(std::string label, int & ip)
 
 int SirrusAssembler::cmd_jg(std::string label, int & ip)
 {
-    if (labels.find(label) == labels.end()) 
-    return JMP_FLAGS::ERROR;
 
     if (cmp_reg == CMP_OUT::GT) 
     {
+         if (isNumber(label)) {
+            ip += std::stoi(label);
+            return JMP_FLAGS::TRUE;
+        }
+
+        if (labels.find(label) == labels.end()) 
+        return JMP_FLAGS::ERROR;
+
+
         retpoints.push_back(ip + 1);
         ip = labels[label];  // Jump to the specified label
         return JMP_FLAGS::TRUE;
@@ -489,11 +672,16 @@ int SirrusAssembler::cmd_jg(std::string label, int & ip)
 
 int SirrusAssembler::cmd_jl(std::string label, int & ip)
 {
-    if (labels.find(label) == labels.end()) 
-    return JMP_FLAGS::ERROR;
-
     if (cmp_reg == CMP_OUT::LT) 
     {
+        if (isNumber(label)) {
+            ip += std::stoi(label);
+            return JMP_FLAGS::TRUE;
+        }
+
+        if (labels.find(label) == labels.end()) 
+        return JMP_FLAGS::ERROR;
+
         retpoints.push_back(ip + 1);
         ip = labels[label];  // Jump to the specified label
         return JMP_FLAGS::TRUE;
@@ -518,8 +706,10 @@ void SirrusAssembler::cmd_hlt()
 
 void SirrusAssembler::executeProgram(const std::string & filename)
 {
-       std::ifstream inputFile(filename);
-    if (!inputFile.is_open()) {
+    bool quitProgram = false;
+    std::ifstream inputFile(filename);
+    if (!inputFile.is_open()) 
+    {
         std::cerr << "Error: Unable to open file " << filename << "\n";
         return;
     }
@@ -529,15 +719,18 @@ void SirrusAssembler::executeProgram(const std::string & filename)
     std::string line;
 
 
-    while (std::getline(inputFile, line)) {
+    while (std::getline(inputFile, line)) 
+    {
         // Remove comments (lines after the semicolon)
         size_t commentPos = line.find(';');
-        if (commentPos != std::string::npos) {
+        if (commentPos != std::string::npos) 
+        {
             line = line.substr(0, commentPos);
         }
 
         // Skip empty lines or lines with only whitespace
-        if (line.find_first_not_of(" \t\r\n") == std::string::npos) {
+        if (line.find_first_not_of(" \t\r\n") == std::string::npos) 
+        {
             continue;
         }
 
@@ -546,15 +739,24 @@ void SirrusAssembler::executeProgram(const std::string & filename)
 
     program = removeIndents(program);
 
-    // Populate the labels map
-    for (int i = 0; i < program.size(); ++i) {
+    // Populate the labels map and Macro's
+    for (int i = 0; i < program.size(); ++i)
+    {
         std::string line = program[i];
         std::vector<std::string> tokens = split(line, ' ');
-        if (!tokens.empty() && tokens[0].back() == ':') {
+        if (!tokens.empty() && tokens[0].back() == ':')
+        {
             std::string label = tokens[0].substr(0, tokens[0].size() - 1);
             labels[label] = i;
         }
+        if(processMacroDefinition(line,i) != MACRO_FLAGS::MOK)
+        {
+            std::cout << "error!" << std::endl;
+            quitProgram = true;
+        }
     }
+
+    if(quitProgram) return;
 
     int ip = 0;  // Instruction pointer
 
@@ -566,12 +768,12 @@ void SirrusAssembler::executeProgram(const std::string & filename)
 
     ip = labels[mainLabel];
 
-    while (ip < program.size()) {
+    while (ip < program.size()) 
+    {
         std::string line = program[ip];
-        //std::cout << line << std::endl;
         std::vector<std::string> tokens = split(line, ' ');
 
-        
+        //std::cout << line << std::endl;
 
         if (tokens.empty() || tokens[0].back() == ':') {
             ip++;
@@ -588,6 +790,15 @@ void SirrusAssembler::executeProgram(const std::string & filename)
                 return;
             }
         }
+
+        if(cmd == "%endmacro")
+        {
+            if(cmd_ret(ip)) {
+                isInMacro = false;
+                continue;
+            }
+        }
+ 
         if (cmd == "input")
         {
             cmd_input();
@@ -624,16 +835,26 @@ void SirrusAssembler::executeProgram(const std::string & filename)
                     return;
                     break;
                 case INT_FLAGS::ERROR_VALUE:
-                    std::cerr << "Error: Tried to initialize a Variable with a string value (line " << ip << ") [" << line << "]\nNumber Expected, Got: " << tokens[2] << "\n";
+                    std::cerr << "Error: Tried to initialize a Variable with a String Value (line " << ip << ") [" << line << "]\nNumber Expected, Got: " << tokens[2] << "\n";
                     return;
                     break;
                 case INT_FLAGS::ERROR_NULLPTR:
                     NULLPTR_ERROR(tokens[2])
                     return;
                     break;
+                case INT_FLAGS::ERROR_BADARRAY:
+                    std::cerr << "Error: Tried to initialize an Array Variable with none-Numerical Values (line " << ip << ") [" << line << "]\nNumbers Expected, Got: " << tokens[2] << "\n";
+                    return;
+                    break;
                 default:
                 break;
             }
+        }
+
+        if(macros.find(cmd) != macros.end())
+        {
+            isInMacro = true;
+            processMacroInvocation(line,ip);
         }
         else if (cmd == "mov")
         {
@@ -715,6 +936,4 @@ void SirrusAssembler::executeProgram(const std::string & filename)
         else return;
         ip++;  // Move to the next instruction
     }
-
-    //debugPrintRegisters();
 }
