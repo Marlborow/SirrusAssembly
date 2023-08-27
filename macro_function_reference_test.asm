@@ -18,11 +18,6 @@
 ;the label will be passed and used to check for existing variables
 ;with such a label.
 
-;Todo:
-;	I already see an issue with variables being referenced from passing through other variables
-;	with string data that reflects a variables label.
-;	It's an easy fix.
-
 ;Working Example below:
 %macro increment 1
 	mov eax [%1]
