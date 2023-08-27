@@ -17,12 +17,6 @@
 ;There's no need to ret within the macro as once it reaches the line "%endmacro"
 ;ret is invoked.
 
-;What needs to be added:
-;	instead of copying the value to the macro registers
-;	allow the ability to pass through a reference
-;	to the variable(s) used to invoke the macro.
-;	pseudo syntax of invocation might look like '_print [&t,&t_len]'
-
 ;Example bellow: (Print function example)
 %macro _print 2
 	mov ebx 0
