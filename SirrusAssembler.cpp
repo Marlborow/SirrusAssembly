@@ -60,22 +60,38 @@ int SirrusAssembler::evaluateExpressionIndex(std::string src)
 {
     size_t plusPos = src.find('+');
     std::string token = src.substr(0,plusPos);
+
+    size_t doublePlusPos = src.find("++");
+
+
     
-    if (plusPos == std::string::npos) {
+    if (plusPos == std::string::npos) 
+    {
         return 0;
-    } else {
-        std::string remainder = src.substr(plusPos + 1);
-        if(registers.find(remainder) != registers.end())
+    } 
+    else 
+    {
+        if(doublePlusPos != std::string::npos)
         {
-            return registers[remainder];
+            //append to variable
+            variables[token].push_back(0);
+            return variables[token].size() - 1;
         }
-        else if(variables.find(remainder) != variables.end())
+        else
         {
-            return variables[remainder][0];
-        }
-        else if(isNumber(remainder))
-        {
-            return std::stoi(remainder);
+            std::string remainder = src.substr(plusPos + 1);
+            if(registers.find(remainder) != registers.end())
+            {
+                return registers[remainder];
+            }
+            else if(variables.find(remainder) != variables.end())
+            {
+                return variables[remainder][0];
+            }
+            else if(isNumber(remainder))
+            {
+                return std::stoi(remainder);
+            }
         }
     }
 }
@@ -103,12 +119,17 @@ std::string SirrusAssembler::extractVariableFromExpression(const std::string & e
 {
     std::string result;
     size_t pos = expression.find('+');
+    size_t dpos = expression.find("++");
     
-    if (pos != std::string::npos) {
-        result = expression.substr(0, pos);
-    } else {
-        result = expression;
+    if(dpos != std::string::npos)
+    {
+        result = expression.substr(0, dpos);
     }
+    else if (pos != std::string::npos) 
+    {
+        result = expression.substr(0, pos);
+    } 
+    else  result = expression;
     
     return result;
 }
@@ -595,31 +616,29 @@ int SirrusAssembler::cmd_pop(std::string src1, std::string line, int & ip)
     return false;
 }
 
-int SirrusAssembler::cmd_push(std::string dest, std::string src, std::string line, int & ip)
+/*
+I'm litteraly gonna forget about this command so here's a description.
+    
+    Description:
+        Push is to push onto the temporary stack 't_stack'
+        t_stack is a std::vector<int>
+*/
+int SirrusAssembler::cmd_push(std::string src, std::string line, int & ip)
 {   
-    if (dest[0] == '[' && dest[dest.size() - 1] == ']') 
+    if (variables.find(extractVariableFromExpression(src)) != variables.end()) 
     {
-        dest = dest.substr(1, dest.size() - 2);
-        if (variables.find(extractVariableFromExpression(dest)) != variables.end()) 
-        {
-            //continue to check if src is number or register
-            if(isNumber(src))
-            {
-                variables[extractVariableFromExpression(dest)].push_back(std::stoi(src));
-                return PUSH_FLAGS::POK;
-            }
+        
+    }
+    else if(registers.find(src) != registers.end())
+    {
 
-            if(registers.find(src) != registers.end())
-            {
-                variables[extractVariableFromExpression(dest)].push_back(registers[src]);
-                return PUSH_FLAGS::POK;
-            }
-        } else 
-        {
-            VARIABLE_ERROR(dest);
-            return PUSH_FLAGS::ERROR_PNAME;
-        }
-    } 
+    }
+    else
+    {
+        //wrong value passed
+        std::cerr << "Error: Invalid push instruction,Variable or Register Expected (line " << ip << ")\"" << line << "\"\n";
+        return 0;
+    }
 }
 
 bool SirrusAssembler::cmd_mul(std::string src1, std::string src2)
@@ -890,18 +909,7 @@ void SirrusAssembler::executeProgram(const std::string & filename)
         }
         if (cmd == "push")
         {
-           switch(cmd_push(tokens[1], tokens[2], line, ip))
-           {
-                case PUSH_FLAGS::ERROR_PNAME:
-                    return;
-                    break;
-                case PUSH_FLAGS::ERROR_PVALUE:
-                    return;
-                    break;
-                case PUSH_FLAGS::ERROR_OOS:
-                    return;
-                    break;
-           }
+           cmd_push(tokens[1], line, ip);
         }
         if (cmd == "pop")
         {
