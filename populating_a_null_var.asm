@@ -15,7 +15,7 @@
 ; you get the values from this by poping the stack
 ; into a register 'pop [register]'
 
-; utilizing the length gotten a loop is made and
+; utilizing the length got from the stack, a loop is made and
 ; that value gets pushed/appened into the variable with
 ; 'mov [variable++] [register]'
 
@@ -49,7 +49,7 @@ lp:
 	je fin
 
 	pop eax
-	mov [o++] eax  
+	mov [o++] eax  ;repurposing push to be more faithful to how x86asm works, appending to variable now works like this
 	mov eax [i]
 	add eax 1
 	mov [i] eax
