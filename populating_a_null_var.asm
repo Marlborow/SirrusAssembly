@@ -16,8 +16,8 @@
 ; into a register 'pop [register]'
 
 ; utilizing the length gotten a loop is made and
-; that value gets pushed into the variable with
-; 'push [variable] [register]'
+; that value gets pushed/appened into the variable with
+; 'mov [variable++] [register]'
 
 ;finally a new variable is created to hold the new value
 ;of the target variables size
@@ -49,7 +49,7 @@ lp:
 	je fin
 
 	pop eax
-	push [o] eax
+	mov [o++] eax  
 	mov eax [i]
 	add eax 1
 	mov [i] eax
@@ -68,8 +68,6 @@ lp2:
 	add ecx 1
 	jmp lp2
 
-
 fin2:
 	print newline
 	hlt
-
