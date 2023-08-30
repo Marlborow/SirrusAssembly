@@ -10,7 +10,6 @@
 #include <fstream>
 #include <stack>
 #include <algorithm> 
-
 class SirrusAssembler
 {
     private:
@@ -73,16 +72,24 @@ class SirrusAssembler
     void debugPrintRegisters();
     bool isNumber(const std::string & str);
 
+    //variables and mov command.
     int cmd_var     (std::string varName, std::string value);
     bool cmd_mov    (std::string dest, std::string src, std::string line, int & ip);
+
+    //ALU logic commands
     bool cmd_add    (std::string src1, std::string src2);
     bool cmd_sub    (std::string src1, std::string src2);
     bool cmd_mul    (std::string src1, std::string src2);
+    
+    // I/O commands
     void cmd_print  (const std::string & src, std::string line, int ip);
     void cmd_input ();
-    int  cmd_pop   (std::string src1,std::string line, int & ip);
-    int  cmd_push  (std::string dest, std::string src, std::string line, int & ip);
 
+    //pop and push for the t_stack variable (temporary stack)
+    int  cmd_pop   (std::string src1,std::string line, int & ip);
+    int  cmd_push  (std::string src, std::string line, int & ip);
+    
+    //Jump and compare
     bool cmd_cmp    (std::string src1,std::string src2);
     bool cmd_jmp    (std::string label, int & ip);
     int cmd_jl     (std::string label, int & ip);
