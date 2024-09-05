@@ -6,10 +6,7 @@ Functions include:
 
 Currently increment and decrement does not work.
 
-**Planned features:**
- - Support for variables to hold a wide range of data types, not limited to just integers.
- - Adding the capability to import external files to improve organization and leverage libraries effectively.
- - Resolve issues with increment and decrement.
+project abandoned 
 
 
 **EXAMPLES**
